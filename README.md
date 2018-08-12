@@ -37,22 +37,22 @@ Account
 
 `GET /account/:accountId` get an account by id
 
-`POST /user/:userId/account` create anew account for a provided user
-  body _required_ `{"currency": "EUR"}`
+`POST /user/:userId/account` create anew account for a provided user  
+  body _required_ `{"currency": "EUR"}`  
   Currency can be: EUR, USD, GBP, RUB.
 
-`PUT /account/:accountId/topUp` add money to an account
+`PUT /account/:accountId/topUp` add money to an account  
   body _required_ `{"amount": 10.15}`
 
-`PUT /account/:accountId/withdraw`
-  body _required_ `{"amount": 10.15}`
+`PUT /account/:accountId/withdraw`  
+  body _required_ `{"amount": 10.15}`  
   Status 400 could be if the account has not enough money.
   
 `DELETE /account/:accountId` withdraw money from an account
 
-`PUT /account/:accountId/transfer` transfer money a provided account
-  body _required_ `{"account": 1, "amount": 10.15}`
-  where `account` is an id of an account for which money should be transferred. Could be from the same user.
+`PUT /account/:accountId/transfer` transfer money a provided account  
+  body _required_ `{"account": 1, "amount": 10.15}`  
+  where `account` is an id of an account for which money should be transferred. Could be from the same user.  
   Status 400 could be if the account has not enough money.
 
  
