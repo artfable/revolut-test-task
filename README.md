@@ -6,7 +6,8 @@ Published to GitHub as was required in the task.
 
 `sh gradlew build` or `gradlew.bat build`
 
-As a repository for resolve dependencies build script will use [JCenter](https://bintray.com/bintray/jcenter).
+As a repository for resolve dependencies build script will use [JCenter](https://bintray.com/bintray/jcenter).  
+Port **8080** is required to be free!
 
 ## Run
 
@@ -17,7 +18,7 @@ Jar will be located in `build/libs`
 ## Description
 
 User can have only one account per each currency. If transfer is done between account with different currencies, money will be automatically exchanged with a provided rate. 
-Exchange rate provided only for EUR/USD and USD/EUR. 
+Exchange rate provided only for EUR/USD and USD/EUR. Port **8080** is hardcoded for the application.
 
 ## API
 
