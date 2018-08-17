@@ -10,9 +10,9 @@ import org.artfable.revolut.test.task.model.Currency;
 import org.artfable.revolut.test.task.model.ExchangeRate;
 import org.artfable.revolut.test.task.model.User;
 import org.artfable.revolut.test.task.service.AccountService;
+import org.artfable.revolut.test.task.service.LockHelperService;
 
 import javax.persistence.NoResultException;
-import javax.transaction.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -31,11 +31,14 @@ class AccountServiceImpl implements AccountService {
     private AccountRepository accountRepository;
     private ExchangeRateRepository exchangeRateRepository;
 
+    private LockHelperService lockHelperService;
+
     @Inject
-    public AccountServiceImpl(UserRepository userRepository, AccountRepository accountRepository, ExchangeRateRepository exchangeRateRepository) {
+    public AccountServiceImpl(UserRepository userRepository, AccountRepository accountRepository, ExchangeRateRepository exchangeRateRepository, LockHelperService lockHelperService) {
         this.userRepository = userRepository;
         this.accountRepository = accountRepository;
         this.exchangeRateRepository = exchangeRateRepository;
+        this.lockHelperService = lockHelperService;
     }
 
     @Override
@@ -53,72 +56,79 @@ class AccountServiceImpl implements AccountService {
     }
 
     @Override
-    public synchronized Account openAccount(Long userId, Currency currency) {
-        User user = userRepository.getUser(userId);
-        if (user == null) {
-            throw new IllegalArgumentException("User with id [" + userId + "] doesn't exist");
-        }
+    public Account openAccount(Long userId, Currency currency) {
+        return lockHelperService.lockedOperation(userId, User.class, () -> {
+            User user = userRepository.getUser(userId);
+            if (user == null) {
+                throw new IllegalArgumentException("User with id [" + userId + "] doesn't exist");
+            }
 
-        Map<Currency, Account> accounts = user.getAccounts();
+            Map<Currency, Account> accounts = user.getAccounts();
 
-        if (accounts.containsKey(currency)) {
-            throw new IllegalArgumentException("Account for [" + currency + "] currency is already exist for user [" + userId + "]");
-        }
+            if (accounts.containsKey(currency)) {
+                throw new IllegalArgumentException("Account for [" + currency + "] currency is already exist for user [" + userId + "]");
+            }
 
-        Account account = new Account(userId, currency);
-        user.addAccount(account);
-        accountRepository.save(account);
-        userRepository.save(user);
+            Account account = new Account(userId, currency);
+            user.addAccount(account);
+            accountRepository.save(account);
+            userRepository.save(user);
 
-        return account;
+            return account;
+        });
     }
 
     @Override
-    public synchronized Account topUpAccount(Long accountId, double amount) {
-        Account account = accountRepository.getAccount(accountId);
-        if (account == null) {
-            throw new IllegalArgumentException("Account doesn't exist");
-        }
+    public Account topUpAccount(Long accountId, double amount) {
+        return lockHelperService.lockedOperation(accountId, Account.class, () -> {
+            Account account = accountRepository.getAccount(accountId);
+            if (account == null) {
+                throw new IllegalArgumentException("Account doesn't exist");
+            }
 
-        return accountRepository.save(add(account, amount));
+            return accountRepository.save(add(account, amount));
+        });
     }
 
     @Override
-    public synchronized Account withdrawFromAccount(Long accountId, double amount) {
-        Account account = accountRepository.getAccount(accountId);
-        if (account == null) {
-            throw new IllegalArgumentException("Account doesn't exist");
-        }
+    public Account withdrawFromAccount(Long accountId, double amount) {
+        return lockHelperService.lockedOperation(accountId, Account.class, () -> {
+            Account account = accountRepository.getAccount(accountId);
+            if (account == null) {
+                throw new IllegalArgumentException("Account doesn't exist");
+            }
 
-        return accountRepository.save(subtract(account, amount));
+            return accountRepository.save(subtract(account, amount));
+        });
     }
 
     @Override
-    public synchronized boolean delete(Long accountId) {
-        return accountRepository.delete(accountId);
+    public boolean delete(Long accountId) {
+        return lockHelperService.lockedOperation(accountId, Account.class, () -> accountRepository.delete(accountId));
     }
 
     @Override
-    @Transactional
-    public synchronized List<Account> transfer(Long fromAccountId, Long toAccountId, double amount) {
-        List<Account> accounts = new ArrayList<>();
+    public List<Account> transfer(Long fromAccountId, Long toAccountId, double amount) {
+        return lockHelperService.lockedOperation(() -> {
+            List<Account> accounts = new ArrayList<>();
 
-        Account fromAccount = accountRepository.getAccount(fromAccountId);
-        if (fromAccount == null) {
-            throw new IllegalArgumentException("Account with id [" + fromAccountId + "] doesn't exist");
-        }
+            Account fromAccount = accountRepository.getAccount(fromAccountId);
+            if (fromAccount == null) {
+                throw new IllegalArgumentException("Account with id [" + fromAccountId + "] doesn't exist");
+            }
 
-        Account toAccount = accountRepository.getAccount(toAccountId);
-        if (toAccount == null) {
-            throw new IllegalArgumentException("Account with id [" + toAccountId + "] doesn't exist");
-        }
+            Account toAccount = accountRepository.getAccount(toAccountId);
+            if (toAccount == null) {
+                throw new IllegalArgumentException("Account with id [" + toAccountId + "] doesn't exist");
+            }
 
-        accounts.add(subtract(fromAccount, amount));
-        BigDecimal newAmount = toAccount.getAmount().add(convertAmount(fromAccount, toAccount, amount));
-        toAccount.setAmount(newAmount);
-        accounts.add(toAccount);
+            accounts.add(subtract(fromAccount, amount));
+            BigDecimal newAmount = toAccount.getAmount().add(convertAmount(fromAccount, toAccount, amount));
+            toAccount.setAmount(newAmount);
+            accounts.add(toAccount);
 
-        return accountRepository.save(accounts);
+            return accountRepository.save(accounts);
+        }, Account.class, toAccountId, fromAccountId);
     }
 
     private BigDecimal convertAmount(Account fromAccount, Account toAccount, double amount) {
@@ -157,8 +167,8 @@ class AccountServiceImpl implements AccountService {
      *
      * @param account
      * @param amount
-     * @throws IllegalArgumentException if amount can't be subtracted
      * @return {@link Account}
+     * @throws IllegalArgumentException if amount can't be subtracted
      */
     private Account subtract(Account account, double amount) {
         BigDecimal newAmount = account.getAmount().subtract(BigDecimal.valueOf(amount)).setScale(2, RoundingMode.FLOOR);

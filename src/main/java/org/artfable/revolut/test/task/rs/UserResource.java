@@ -3,7 +3,8 @@ package org.artfable.revolut.test.task.rs;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
-import org.artfable.revolut.test.task.config.RestController;
+import com.google.inject.Injector;
+import org.artfable.revolut.test.task.config.rs.RestController;
 import org.artfable.revolut.test.task.model.User;
 import org.artfable.revolut.test.task.service.UserService;
 import org.slf4j.Logger;
@@ -28,14 +29,17 @@ class UserResource {
     private UserService userService;
 
     @Inject
-    private UserResource(ObjectMapper objectMapper, UserService userService) {
+    public UserResource(ObjectMapper objectMapper, UserService userService) {
         this.objectMapper = objectMapper;
         this.userService = userService;
+    }
 
-        get("/user", this::getAllUsers);
-        get("/user/:id", this::getUser);
-        post("/user", this::createNewUser);
-        delete("/user/:id", this::deleteUser);
+    public static void init(Injector injector) {
+        // each time should be provided new instance for a request.
+        get("/user", (request, response) -> injector.getInstance(UserResource.class).getAllUsers(request, response));
+        get("/user/:id", (request, response) -> injector.getInstance(UserResource.class).getUser(request, response));
+        post("/user", (request, response) -> injector.getInstance(UserResource.class).createNewUser(request, response));
+        delete("/user/:id", (request, response) -> injector.getInstance(UserResource.class).deleteUser(request, response));
 
         logger.debug(UserResource.class.getSimpleName() + " was initialized");
     }

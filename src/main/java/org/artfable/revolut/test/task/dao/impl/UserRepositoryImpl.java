@@ -58,9 +58,6 @@ class UserRepositoryImpl implements UserRepository {
     public boolean delete(Long id) {
         User user = entityManager.find(User.class, id);
         if (user != null) {
-            Map<Currency, Account> accounts = new HashMap<>(user.getAccounts());
-            accounts.forEach((currency, account) -> entityManager.remove(account));
-            entityManager.flush();
             entityManager.remove(user);
             entityManager.flush();
             return true;

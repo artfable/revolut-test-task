@@ -5,18 +5,21 @@ import org.artfable.revolut.test.task.dao.ExchangeRateRepository;
 import org.artfable.revolut.test.task.model.Account;
 import org.artfable.revolut.test.task.model.Currency;
 import org.artfable.revolut.test.task.model.ExchangeRate;
+import org.artfable.revolut.test.task.service.LockHelperService;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
+import org.mockito.Matchers;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.runners.MockitoJUnitRunner;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.function.Supplier;
 
-import static org.junit.Assert.*;
-import static org.mockito.Matchers.anyList;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyListOf;
 import static org.mockito.Mockito.when;
 
@@ -33,8 +36,19 @@ public class AccountServiceImplTest {
     @Mock
     private ExchangeRateRepository exchangeRateRepository;
 
+    @Mock
+    private LockHelperService lockHelperService;
+
     @InjectMocks
     private AccountServiceImpl accountService;
+
+    @Before
+    public void setUp() {
+        when(lockHelperService.lockedOperation(any(), any(), Matchers.<Long>anyVararg())).thenAnswer(invocation -> {
+            Supplier action = invocation.getArgumentAt(0, Supplier.class);
+            return action.get();
+        });
+    }
 
     @Test
     public void testTransfer() {

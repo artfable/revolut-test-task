@@ -4,7 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
-import org.artfable.revolut.test.task.config.RestController;
+import com.google.inject.Injector;
+import org.artfable.revolut.test.task.config.rs.RestController;
 import org.artfable.revolut.test.task.model.Currency;
 import org.artfable.revolut.test.task.service.AccountService;
 import org.slf4j.Logger;
@@ -30,19 +31,21 @@ class AccountResource {
     private AccountService accountService;
 
     @Inject
-    private AccountResource(ObjectMapper objectMapper, AccountService accountService) {
+    public AccountResource(ObjectMapper objectMapper, AccountService accountService) {
         this.objectMapper = objectMapper;
         this.accountService = accountService;
+    }
 
+    public static void init(Injector injector) {
         String userPath = "/user/:userId";
-        get(userPath + "/account", this::getAllAccountByUser);
-        get("/account/:id", this::getAccount);
-        post(userPath + "/account", this::openAccount);
-        put( "/account/:id/topUp", this::topUpAccount);
-        put( "/account/:id/withdraw", this::withdrawFromAccount);
-        delete( "/account/:id", this::deleteAccount);
+        get(userPath + "/account", (request, response) -> injector.getInstance(AccountResource.class).getAllAccountByUser(request, response));
+        get("/account/:id", (request, response) -> injector.getInstance(AccountResource.class).getAccount(request, response));
+        post(userPath + "/account", (request, response) -> injector.getInstance(AccountResource.class).openAccount(request, response));
+        put("/account/:id/topUp", (request, response) -> injector.getInstance(AccountResource.class).topUpAccount(request, response));
+        put("/account/:id/withdraw", (request, response) -> injector.getInstance(AccountResource.class).withdrawFromAccount(request, response));
+        delete("/account/:id", (request, response) -> injector.getInstance(AccountResource.class).deleteAccount(request, response));
 
-        put("/account/:id/transfer", this::transfer);
+        put("/account/:id/transfer", (request, response) -> injector.getInstance(AccountResource.class).transfer(request, response));
 
         logger.debug(AccountResource.class.getSimpleName() + " was initialized");
     }
